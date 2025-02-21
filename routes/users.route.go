@@ -18,11 +18,11 @@ func RegisterUserRoutes(e *echo.Echo, db *sql.DB) {
 	h := handler.NewUserHandler(uc)
 
 	// Group user routes
-	userRoutes := e.Group("/users")
-	userRoutes.GET("", h.GetAllUsers)             // Get all users
-	userRoutes.POST("", h.CreateUser)             // Create a new user
-	userRoutes.GET("/:id", h.GetUser)             // Get user by ID
-	userRoutes.PUT("/:id", h.UpdateUser)          // Update user by ID
-	userRoutes.PATCH("/:id", h.PartialUpdateUser) // Partially update user
-	userRoutes.DELETE("/:id", h.DeleteUser)       // Delete user by ID
+	userRoutes := e.Group("/api/users")
+	userRoutes.GET("", h.GetUsers)
+	userRoutes.POST("", h.CreateUser)
+	userRoutes.GET("/:id", h.GetUser)
+	userRoutes.PUT("/:id", h.UpdateUser)
+	userRoutes.PATCH("/:id", h.UpdateUser)
+	userRoutes.DELETE("/:id", h.DeleteUser)
 }

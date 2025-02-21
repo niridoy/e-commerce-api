@@ -7,9 +7,11 @@ import (
 
 // UserRepository defines the methods available for user repository operations.
 type UserRepository interface {
-	GetUserByID(id int) (*models.User, error)
+	GetUser(id int) (*models.User, error)
 	CreateUser(user *models.User) error
-	GetAllUsers() ([]*models.User, error) // New method
+	GetUsers() ([]*models.User, error) // New method
+	UpdateUser(id string, user *models.User) error
+	DeleteUser(id string) error
 }
 
 // userRepo is a struct that implements UserRepository.
@@ -23,7 +25,7 @@ func NewUserRepository(db *sql.DB) UserRepository {
 }
 
 // GetUserByID retrieves a user by their ID along with their associated roles.
-func (r *userRepo) GetUserByID(id int) (*models.User, error) {
+func (r *userRepo) GetUser(id int) (*models.User, error) {
 	var user models.User
 	// Query user data
 	err := r.db.QueryRow("SELECT id, name, email FROM users WHERE id = ?", id).
@@ -86,7 +88,7 @@ func (r *userRepo) CreateUser(user *models.User) error {
 }
 
 // GetAllUsers retrieves all users from the database.
-func (r *userRepo) GetAllUsers() ([]*models.User, error) {
+func (r *userRepo) GetUsers() ([]*models.User, error) {
 	var users []*models.User
 
 	// Query all users
@@ -111,4 +113,70 @@ func (r *userRepo) GetAllUsers() ([]*models.User, error) {
 	}
 
 	return users, nil
+}
+
+// UpdateUserById updates a user's name, email, and roles by their ID.
+func (r *userRepo) UpdateUser(id string, user *models.User) error {
+	// Begin transaction to ensure data consistency
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Update the user's basic information (name, email)
+	_, err = tx.Exec("UPDATE users SET name = ?, email = ? WHERE id = ?", user.Name, user.Email, id)
+	if err != nil {
+		return err
+	}
+
+	// Remove existing roles for the user
+	_, err = tx.Exec("DELETE FROM user_role WHERE user_id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	// Insert new roles for the user
+	for _, role := range user.Roles {
+		_, err := tx.Exec("INSERT INTO user_role (user_id, role_id) VALUES (?, ?)", id, role.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteUserById deletes a user by their ID along with their associated roles.
+func (r *userRepo) DeleteUser(id string) error {
+	// Begin transaction to ensure data consistency
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Remove user roles first
+	_, err = tx.Exec("DELETE FROM user_role WHERE user_id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	// Then remove the user from the users table
+	_, err = tx.Exec("DELETE FROM users WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
